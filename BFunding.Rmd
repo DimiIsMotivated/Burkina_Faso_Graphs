@@ -1,0 +1,60 @@
+---
+title: "DOS Burkina Faso"
+output: html_document
+date: "2023-08-12"
+---
+
+```{r}
+#install and load ggplot2
+install.packages("tidyverse")
+library(tidyverse)
+
+#install and laod dplyr
+install.packages("dplyr")
+library(dplyr)
+
+#reads csv file for dataset and stores into data variable
+data <- read.csv("/Users/dimitri/Desktop/ForeignAidData/ForeignAid.csv")
+str(data)
+head(data)
+
+#converts to numerics
+data$Fiscal.Year <- as.numeric(data$Fiscal.Year)
+data$current_amount <- as.numeric(data$current_amount)
+  
+#group by year, transaction type name, country, category
+data_wrangled <- data %>%
+  group_by(Country.Name, Funding.Agency.Name, Fiscal.Year, Transaction.Type.Name) %>%
+  summarise(TotalAmount = sum(current_amount, na.rm = TRUE))
+
+#filters Burkina Faso and State Department
+filtered_data <- data_wrangled %>%
+  filter(Country.Name == "Burkina Faso", Funding.Agency.Name == "Department of State", Transaction.Type.Name == "Disbursements")
+
+#make line chart
+my_plot <- ggplot(filtered_data, aes(x = Fiscal.Year, y = TotalAmount, group = Funding.Agency.Name)) +
+  geom_line(color = "black") +
+  geom_text(aes(label = ifelse(TotalAmount == max(TotalAmount), scales::comma_format(accuracy = 0.1)(TotalAmount / 1e6), "")), 
+            vjust = -0.5, color = "black", size = 3) +
+  geom_text(data = filtered_data %>% filter(Fiscal.Year == 2016),
+            aes(x = Fiscal.Year, y = TotalAmount / 1e6, label = scales::comma_format(accuracy = 0.1)(TotalAmount / 1e6)),  # Fixed this line
+            vjust = -29, color = "black", size = 3) +
+  labs(title = "Figure 2: DOS Aid to Burkina Faso from 2001 to 2023",
+       x = "Year",
+       y = "Funding (Millions of USD)") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+#fixes scale of x axis
+my_plot <- my_plot +
+  scale_x_continuous(limits = c(2001, 2023))
+
+#gets rid of scientific notation
+my_plot <- my_plot +
+  scale_y_continuous(labels = scales::comma_format(scale = 1e-6))
+
+#prints the line graph
+ggsave("line_graph.pdf", plot = my_plot, device = "pdf")
+```
